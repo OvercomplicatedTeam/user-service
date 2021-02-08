@@ -7,3 +7,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+dotenv = "0.14.1"
+tokio = { version = "1", features = ["full"] }
+warp = "0.3.0"
+serde = { version = "1.0.117", features = ["derive"] }
+rust-argon2 = "0.8"
+rand = "0.8.3"
+jsonwebtoken = "7.2.0"
+thiserror = "1.0.23"
+chrono = "0.4.19"
