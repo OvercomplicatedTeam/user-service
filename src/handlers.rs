@@ -1,21 +1,34 @@
 use std::convert::{Infallible};
 use warp::{http::StatusCode, Reply, reject, reply, Rejection};
 
-use crate::schema::{Parking, Db, User, UserCredentials, LoginResponse};
-use crate::utils::{hash, verify, create_jwt};
+use crate::schema::{Parking, Db, User, UserCredentials, LoginResponse, CreateParkingRequest};
+use crate::auth::{hash, verify, create_jwt};
 use crate::errors::Error::WrongCredentialsError;
 
 
-pub async fn create_parking(new_parking: Parking, db: Db) -> Result<impl Reply, Infallible> {
+pub async fn create_parking(parking: CreateParkingRequest, db: Db, user_id: u64) -> Result<impl Reply, Infallible> {
     let mut db = db.lock().await;
 
     match db.parkings
         .iter()
-        .find(|parking| parking.id == new_parking.id) {
+        .find(|p| p.name == parking.name) {
         Some(_) => {
             Ok(StatusCode::BAD_REQUEST)
         }
         None => {
+            let new_id = db
+                .parkings
+                .iter()
+                .fold(0, |acc, parking|
+                    if acc > parking.id { acc }
+                    else { parking.id }
+                ) + 1;
+            let new_parking = Parking{
+                id:new_id,
+                admin_id:user_id,
+                name: parking.name,
+                parking_consumers_id:Vec::new()
+            };
             db.parkings.push(new_parking);
             Ok(StatusCode::CREATED)
         }

@@ -1,5 +1,5 @@
 use warp::{Filter, Rejection, Reply};
-use crate::schema::{Db, Parking, UserCredentials};
+use crate::schema::{Db, UserCredentials, CreateParkingRequest};
 use crate::{filters, errors};
 use crate::handlers;
 use std::convert::Infallible;
@@ -14,8 +14,9 @@ pub fn parkings_routes(db:Db) -> impl Filter<Extract = impl Reply, Error = Infal
 pub fn parking_create(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::path!("parkings")
         .and(warp::post())
-        .and(filters::json_body::<Parking>())
+        .and(filters::json_body::<CreateParkingRequest>())
         .and(filters::with_db(db))
+        .and(filters::with_auth())
         .and_then(handlers::create_parking)
 }
 
