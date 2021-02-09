@@ -1,5 +1,5 @@
 use warp::{Filter, Rejection, Reply};
-use crate::schema::{Db, UserCredentials, CreateParkingRequest};
+use crate::schema::{Db, UserCredentials, CreateParkingRequest, JoinParkingRequest};
 use crate::{filters, errors};
 use crate::handlers;
 use std::convert::Infallible;
@@ -9,6 +9,7 @@ pub fn parkings_routes(db:Db) -> impl Filter<Extract = impl Reply, Error = Infal
         .or(parking_create(db.clone()))
         .or(login(db.clone()))
         .or(list_parkings(db.clone()))
+        .or(parking_join(db.clone()))
         .recover(errors::handle_rejection)
 }
 
@@ -17,15 +18,24 @@ pub fn parking_create(db:Db) -> impl Filter<Extract = impl Reply, Error = Reject
         .and(warp::post())
         .and(filters::json_body::<CreateParkingRequest>())
         .and(filters::with_db(db))
-        .and(filters::with_auth())
+        .and(filters::with_auth(true))
         .and_then(handlers::create_parking)
+}
+
+pub fn parking_join(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::path!("join_parking")
+        .and(warp::post())
+        .and(filters::json_body::<JoinParkingRequest>())
+        .and(filters::with_db(db))
+        .and(filters::with_auth(false))
+        .and_then(handlers::join_parking)
 }
 
 pub fn list_parkings(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::path!("parkings")
         .and(warp::get())
         .and(filters::with_db(db))
-        .and(filters::with_auth())
+        .and(filters::with_auth(true))
         .and_then(handlers::list_parkings)
 }
 

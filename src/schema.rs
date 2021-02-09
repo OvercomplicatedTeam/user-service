@@ -26,8 +26,8 @@ pub struct UserCredentials {
 #[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: u64,
-    pub login: String,
-    pub password: String,
+    pub login: Option<String>,
+    pub password: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -63,6 +63,13 @@ pub struct ParkingWithoutPassword {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateParkingRequest {
+    pub name: String,
+    pub password: String
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct JoinParkingRequest {
     pub name: String,
     pub password: String
 }

@@ -18,8 +18,8 @@ pub fn with_jwt_secret() -> impl Filter <Extract = (String,), Error = Infallible
     warp::any().map(move || env::var("JWT_SECRET").unwrap())
 }
 
-pub fn with_auth() -> impl Filter<Extract = (u64,), Error = Rejection> + Clone {
+pub fn with_auth(obligatory:bool) -> impl Filter<Extract = (Option<u64>,), Error = Rejection> + Clone {
     filters::header::headers_cloned()
-        .map(move |headers: HeaderMap<HeaderValue>| headers)
+        .map(move |headers: HeaderMap<HeaderValue>| (headers, obligatory))
         .and_then(authorize)
 }

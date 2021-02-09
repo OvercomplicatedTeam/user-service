@@ -16,6 +16,8 @@ pub enum Error {
     NoAuthHeaderError,
     #[error("invalid auth header")]
     InvalidAuthHeaderError,
+    #[error("parking not found")]
+    WrongParkingError,
     // #[error("no permission")]
     // NoPermissionError,
 }
@@ -36,6 +38,7 @@ pub async fn handle_rejection(err:Rejection) -> std::result::Result<impl Reply, 
             Error::WrongCredentialsError => (StatusCode::FORBIDDEN, error.to_string()),
             Error::JWTTokenError => (StatusCode::UNAUTHORIZED, error.to_string()),
             Error::JWTTokenCreationError => (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string()),
+            Error::WrongParkingError => (StatusCode::BAD_REQUEST, error.to_string()),
             // Error::NoPermissionError => (StatusCode::UNAUTHORIZED, error.to_string()),
             _ => (StatusCode::BAD_REQUEST, error.to_string()),
         }

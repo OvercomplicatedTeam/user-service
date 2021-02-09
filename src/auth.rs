@@ -39,7 +39,7 @@ pub fn create_jwt(id: &u64, jwt_secret:&[u8]) -> Result<String, Error> {
 
 
 
-pub async fn authorize(headers:  HeaderMap<HeaderValue>) -> Result<u64, Rejection>{
+pub async fn authorize((headers, obligatory):  (HeaderMap<HeaderValue>, bool)) -> Result<Option<u64>, Rejection>{
     let jwt_secret = env::var("JWT_SECRET").unwrap();
     match jwt_from_header(&headers) {
         Ok(jwt) => {
@@ -49,9 +49,16 @@ pub async fn authorize(headers:  HeaderMap<HeaderValue>) -> Result<u64, Rejectio
                 &Validation::new(Algorithm::HS512)
             ).map_err(|_| reject::custom(Error::JWTTokenError))?;
 
-            Ok(decoded.claims.id)
+            Ok(Some(decoded.claims.id))
         }
-        Err(e) => Err(reject::custom(e))
+        Err(e) => {
+            if obligatory {
+                Err(reject::custom(e))
+            }else {
+                Ok(None)
+            }
+
+        }
     }
 }
 
