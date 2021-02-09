@@ -8,6 +8,7 @@ pub fn parkings_routes(db:Db) -> impl Filter<Extract = impl Reply, Error = Infal
     register(db.clone())
         .or(parking_create(db.clone()))
         .or(login(db.clone()))
+        .or(list_parkings(db.clone()))
         .recover(errors::handle_rejection)
 }
 
@@ -18,6 +19,14 @@ pub fn parking_create(db:Db) -> impl Filter<Extract = impl Reply, Error = Reject
         .and(filters::with_db(db))
         .and(filters::with_auth())
         .and_then(handlers::create_parking)
+}
+
+pub fn list_parkings(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::path!("parkings")
+        .and(warp::get())
+        .and(filters::with_db(db))
+        .and(filters::with_auth())
+        .and_then(handlers::list_parkings)
 }
 
 pub fn register(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
@@ -36,3 +45,4 @@ pub fn login(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Cl
         .and(filters::with_jwt_secret())
         .and_then(handlers::login)
 }
+
