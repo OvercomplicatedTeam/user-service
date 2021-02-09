@@ -1,7 +1,7 @@
 use std::convert::{Infallible};
 use warp::{http::StatusCode, Reply, reject, reply, Rejection};
 
-use crate::schema::{Parking, Db, User, UserCredentials, LoginResponse, CreateParkingRequest};
+use crate::schema::{Parking, Db, User, UserCredentials, LoginResponse, CreateParkingRequest, ParkingWithoutPassword};
 use crate::auth::{hash, verify, create_jwt};
 use crate::errors::Error::WrongCredentialsError;
 
@@ -26,6 +26,7 @@ pub async fn create_parking(parking: CreateParkingRequest, db: Db, user_id: u64)
                 id: new_id,
                 admin_id: user_id,
                 name: parking.name,
+                password: parking.password,
                 parking_consumers_id: Vec::new(),
             };
             db.parkings.push(new_parking);
@@ -88,6 +89,7 @@ pub async fn list_parkings(db: Db, user_id: u64) -> Result<impl Reply, Rejection
         .parkings
         .iter()
         .filter(|parking| parking.admin_id == user_id)
+        .map(|parking| parking.to_parking_without_password())
         .collect();
-    Ok(reply::json::<Vec<&Parking>>(&parkings))
+    Ok(reply::json::<Vec<ParkingWithoutPassword>>(&parkings))
 }

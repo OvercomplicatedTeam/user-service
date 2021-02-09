@@ -35,6 +35,27 @@ pub struct User {
 pub struct Parking {
     pub id: u64,
     pub name: String,
+    pub password: String,
+    pub admin_id: u64,
+    pub parking_consumers_id: Vec<u64>,
+}
+
+impl Parking {
+    pub fn to_parking_without_password(&self) -> ParkingWithoutPassword {
+        ParkingWithoutPassword{
+            id: self.id,
+            name: self.name.clone(),
+            admin_id: self.admin_id,
+            parking_consumers_id: self.parking_consumers_id.clone()
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ParkingWithoutPassword {
+    pub id: u64,
+    pub name: String,
     pub admin_id: u64,
     pub parking_consumers_id: Vec<u64>,
 }
@@ -42,7 +63,8 @@ pub struct Parking {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateParkingRequest {
-    pub name: String
+    pub name: String,
+    pub password: String
 }
 
 
