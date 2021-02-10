@@ -1,10 +1,10 @@
-use warp::{Filter, Rejection, Reply};
-use crate::schema::{Db, UserCredentials, CreateParkingRequest, JoinParkingRequest};
-use crate::{filters, errors};
 use crate::handlers;
+use crate::schema::{CreateParkingRequest, Db, JoinParkingRequest, UserCredentials};
+use crate::{errors, filters};
 use std::convert::Infallible;
+use warp::{Filter, Rejection, Reply};
 
-pub fn parkings_routes(db:Db) -> impl Filter<Extract = impl Reply, Error = Infallible> + Clone {
+pub fn parkings_routes(db: Db) -> impl Filter<Extract = impl Reply, Error = Infallible> + Clone {
     register(db.clone())
         .or(parking_create(db.clone()))
         .or(login(db.clone()))
@@ -13,7 +13,7 @@ pub fn parkings_routes(db:Db) -> impl Filter<Extract = impl Reply, Error = Infal
         .recover(errors::handle_rejection)
 }
 
-pub fn parking_create(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+pub fn parking_create(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::path!("parkings")
         .and(warp::post())
         .and(filters::json_body::<CreateParkingRequest>())
@@ -22,7 +22,7 @@ pub fn parking_create(db:Db) -> impl Filter<Extract = impl Reply, Error = Reject
         .and_then(handlers::create_parking)
 }
 
-pub fn parking_join(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+pub fn parking_join(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::path!("join_parking")
         .and(warp::post())
         .and(filters::json_body::<JoinParkingRequest>())
@@ -31,7 +31,7 @@ pub fn parking_join(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejectio
         .and_then(handlers::join_parking)
 }
 
-pub fn list_parkings(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+pub fn list_parkings(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::path!("parkings")
         .and(warp::get())
         .and(filters::with_db(db))
@@ -39,7 +39,7 @@ pub fn list_parkings(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejecti
         .and_then(handlers::list_parkings)
 }
 
-pub fn register(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+pub fn register(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::path!("register")
         .and(warp::post())
         .and(filters::json_body::<UserCredentials>())
@@ -47,7 +47,7 @@ pub fn register(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> +
         .and_then(handlers::register)
 }
 
-pub fn login(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+pub fn login(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::path!("login")
         .and(warp::post())
         .and(filters::json_body::<UserCredentials>())
@@ -55,4 +55,3 @@ pub fn login(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Cl
         .and(filters::with_jwt_secret())
         .and_then(handlers::login)
 }
-

@@ -1,9 +1,9 @@
-mod schema;
-mod routes;
-mod filters;
-mod handlers;
 mod auth;
 mod errors;
+mod filters;
+mod handlers;
+mod routes;
+mod schema;
 
 use dotenv::dotenv;
 
@@ -17,6 +17,5 @@ async fn main() {
 
     let api = routes::parkings_routes(db);
 
-    warp::serve(api).run(([127,0,0,1], 8080)).await;
-
+    warp::serve(api).run(([127, 0, 0, 1], 8080)).await;
 }
