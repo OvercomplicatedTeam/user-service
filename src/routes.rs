@@ -16,7 +16,16 @@ pub fn parkings_routes(
         .or(log_in(db_connection.clone()))
         .or(list_parkings(db_connection.clone()))
         .or(parking_join(db_connection.clone()))
+        .or(get_parking_password(db_connection.clone()))
         .recover(errors::handle_rejection)
+}
+
+pub fn get_parking_password(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::path!("parkings" / i32 / "password")
+        .and(warp::get())
+        .and(filters::with_db(db))
+        .and(filters::with_auth(true))
+        .and_then(handlers::get_parking_password)
 }
 
 pub fn parking_create(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {

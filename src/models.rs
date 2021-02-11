@@ -1,7 +1,8 @@
 use crate::schema::ParkingWithoutPassword;
+use serde::{Deserialize, Serialize};
 use diesel::*;
 
-#[derive(Queryable, PartialEq, Debug)]
+#[derive(Queryable, PartialEq, Debug, Deserialize, Serialize)]
 pub struct Parking {
     pub parking_id: i32,
     pub name: String,

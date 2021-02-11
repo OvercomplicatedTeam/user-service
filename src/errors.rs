@@ -19,8 +19,9 @@ pub enum Error {
     #[error("parking not found")]
     WrongParkingError,
     #[error("This login is taken. Try another.")]
-    LoginInUseError, // #[error("no permission")]
-                     // NoPermissionError
+    LoginInUseError,
+    #[error("no permission")]
+     NoPermissionError
 }
 
 #[derive(Serialize, Debug)]
@@ -44,7 +45,7 @@ pub async fn handle_rejection(err: Rejection) -> std::result::Result<impl Reply,
             ),
             Error::WrongParkingError => (StatusCode::BAD_REQUEST, error.to_string()),
             Error::LoginInUseError => (StatusCode::BAD_REQUEST, error.to_string()),
-            // Error::NoPermissionError => (StatusCode::UNAUTHORIZED, error.to_string()),
+            Error::NoPermissionError => (StatusCode::UNAUTHORIZED, error.to_string()),
             _ => (StatusCode::BAD_REQUEST, error.to_string()),
         }
     } else if err.find::<warp::reject::MethodNotAllowed>().is_some() {

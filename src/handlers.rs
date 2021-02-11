@@ -2,7 +2,7 @@ use std::convert::Infallible;
 use warp::{http::StatusCode, reject, reply, Rejection, Reply, Filter};
 
 use crate::auth::{create_jwt, hash, verify};
-use crate::errors::Error::{LoginInUseError, WrongCredentialsError, WrongParkingError};
+use crate::errors::Error::{LoginInUseError, WrongCredentialsError, WrongParkingError, NoPermissionError};
 use crate::routes::Db;
 use crate::schema::{
     CreateParkingRequest, JoinParkingRequest, LoginResponse, ParkingWithoutPassword,
@@ -17,6 +17,35 @@ use crate::models::{Parking, User, ParkingConsumer};
 use diesel::result::Error;
 use diesel::*;
 use std::ops::Deref;
+
+pub async fn get_parking_password(
+    parking_id: i32,
+    db:Db,
+    user_id: Option<i32>
+) -> Result<impl Reply, Rejection> {
+    let db_conn_mutex = db.lock().unwrap();
+    let db_conn = db_conn_mutex.deref();
+    match user_id {
+        None => Err(reject::custom(NoPermissionError)),
+        Some(owner_id) => {
+
+            let parking:Result<Parking, Error> = parkings::dsl::parkings
+                .find::<i32>(parking_id)
+                .first::<Parking>(db_conn);
+            match parking {
+                Err(_) => Err(reject::custom(NoPermissionError)),
+                Ok(parking) => {
+                    if parking.admin_id == owner_id{
+                        Ok(reply::json(&parking))
+                    }else {
+                        Err(reject::custom(NoPermissionError))
+                    }
+
+                }
+            }
+        }
+    }
+}
 
 pub async fn create_parking(
     parking: CreateParkingRequest,
