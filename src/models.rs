@@ -1,4 +1,3 @@
-// use diesel::deserialize::Queryable;
 use crate::schema::ParkingWithoutPassword;
 use diesel::*;
 
@@ -15,6 +14,12 @@ pub struct User {
     pub id: i32,
     pub login: Option<String>,
     pub password: Option<String>,
+}
+
+#[derive(Queryable, PartialEq, Debug)]
+pub struct ParkingConsumer {
+    pub parking_id: i32,
+    pub consumer_id :i32
 }
 
 impl Parking {
