@@ -1,8 +1,10 @@
 use std::convert::Infallible;
-use warp::{http::StatusCode, reject, reply, Rejection, Reply, Filter};
+use warp::{http::StatusCode, reject, reply, Filter, Rejection, Reply};
 
 use crate::auth::{create_jwt, hash, verify};
-use crate::errors::Error::{LoginInUseError, WrongCredentialsError, WrongParkingError, NoPermissionError};
+use crate::errors::Error::{
+    LoginInUseError, NoPermissionError, WrongCredentialsError, WrongParkingError,
+};
 use crate::routes::Db;
 use crate::schema::{
     CreateParkingRequest, JoinParkingRequest, LoginResponse, ParkingWithoutPassword,
@@ -13,34 +15,32 @@ use crate::db_schema::parkings;
 use crate::db_schema::parkings_consumers;
 use crate::db_schema::users::columns::password;
 use crate::db_schema::users::dsl::{login, users};
-use crate::models::{Parking, User, ParkingConsumer};
+use crate::models::{Parking, ParkingConsumer, User};
 use diesel::result::Error;
 use diesel::*;
 use std::ops::Deref;
 
 pub async fn get_parking_password(
     parking_id: i32,
-    db:Db,
-    user_id: Option<i32>
+    db: Db,
+    user_id: Option<i32>,
 ) -> Result<impl Reply, Rejection> {
     let db_conn_mutex = db.lock().unwrap();
     let db_conn = db_conn_mutex.deref();
     match user_id {
         None => Err(reject::custom(NoPermissionError)),
         Some(owner_id) => {
-
-            let parking:Result<Parking, Error> = parkings::dsl::parkings
+            let parking: Result<Parking, Error> = parkings::dsl::parkings
                 .find::<i32>(parking_id)
                 .first::<Parking>(db_conn);
             match parking {
                 Err(_) => Err(reject::custom(NoPermissionError)),
                 Ok(parking) => {
-                    if parking.admin_id == owner_id{
+                    if parking.admin_id == owner_id {
                         Ok(reply::json(&parking))
-                    }else {
+                    } else {
                         Err(reject::custom(NoPermissionError))
                     }
-
                 }
             }
         }
@@ -162,22 +162,27 @@ pub async fn log_in(
     }
 }
 
-fn get_consumed_parkings(db_conn: &PgConnection, user_id:i32) -> Vec<Parking>{
-    let consumers:Vec<ParkingConsumer>
-        = match parkings_consumers::dsl::parkings_consumers
+fn get_consumed_parkings(db_conn: &PgConnection, user_id: i32) -> Vec<Parking> {
+    let consumers: Vec<ParkingConsumer> = match parkings_consumers::dsl::parkings_consumers
         .filter(parkings_consumers::dsl::consumer_id.eq(user_id))
-        .load::<ParkingConsumer>(db_conn){
+        .load::<ParkingConsumer>(db_conn)
+    {
         Ok(p) => p,
         Err(e) => {
             println!("{:?}", e);
             Vec::new()
         }
     };
-    consumers.into_iter()
-        .map(|c| parkings::dsl::parkings.find(c.parking_id).first(db_conn).unwrap())
+    consumers
+        .into_iter()
+        .map(|c| {
+            parkings::dsl::parkings
+                .find(c.parking_id)
+                .first(db_conn)
+                .unwrap()
+        })
         .rev()
         .collect()
-
 }
 
 pub async fn list_parkings(db: Db, user_id: Option<i32>) -> Result<impl Reply, Rejection> {
@@ -185,9 +190,9 @@ pub async fn list_parkings(db: Db, user_id: Option<i32>) -> Result<impl Reply, R
     let db_conn = db_conn_mutex.deref();
 
     let mut consumed_parkings: Vec<ParkingWithoutPassword> =
-        get_consumed_parkings(db_conn,user_id.unwrap())
+        get_consumed_parkings(db_conn, user_id.unwrap())
             .iter()
-            .map(|parking|parking.to_parking_without_password())
+            .map(|parking| parking.to_parking_without_password())
             .collect();
 
     let mut parkings: Vec<ParkingWithoutPassword> = match parkings::dsl::parkings
@@ -201,5 +206,7 @@ pub async fn list_parkings(db: Db, user_id: Option<i32>) -> Result<impl Reply, R
         Err(_) => return Err(reject()),
     };
     consumed_parkings.append(&mut parkings);
-    Ok(reply::json::<Vec<ParkingWithoutPassword>>(&consumed_parkings))
+    Ok(reply::json::<Vec<ParkingWithoutPassword>>(
+        &consumed_parkings,
+    ))
 }

@@ -21,7 +21,7 @@ pub enum Error {
     #[error("This login is taken. Try another.")]
     LoginInUseError,
     #[error("no permission")]
-     NoPermissionError
+    NoPermissionError,
 }
 
 #[derive(Serialize, Debug)]

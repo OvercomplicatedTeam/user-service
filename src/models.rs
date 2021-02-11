@@ -1,6 +1,6 @@
 use crate::schema::ParkingWithoutPassword;
-use serde::{Deserialize, Serialize};
 use diesel::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Queryable, PartialEq, Debug, Deserialize, Serialize)]
 pub struct Parking {
@@ -20,7 +20,7 @@ pub struct User {
 #[derive(Queryable, PartialEq, Debug)]
 pub struct ParkingConsumer {
     pub parking_id: i32,
-    pub consumer_id :i32
+    pub consumer_id: i32,
 }
 
 impl Parking {

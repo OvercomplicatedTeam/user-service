@@ -20,7 +20,9 @@ pub fn parkings_routes(
         .recover(errors::handle_rejection)
 }
 
-pub fn get_parking_password(db:Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+pub fn get_parking_password(
+    db: Db,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::path!("parkings" / i32 / "password")
         .and(warp::get())
         .and(filters::with_db(db))
