@@ -11,7 +11,8 @@ use crate::schema::{CreateParkingRequest, JoinParkingRequest, LoginResponse, Par
 use crate::db_schema::parkings;
 use crate::db_schema::parkings_consumers;
 use crate::db_schema::users::columns::password;
-use crate::db_schema::users::dsl::{login, users};
+use crate::db_schema::users::dsl::{login};
+use crate::db_schema::users;
 use crate::models::{Parking, ParkingConsumer, User};
 use diesel::result::Error;
 use diesel::*;
@@ -89,12 +90,12 @@ pub async fn join_parking(
     let db_conn = db_conn_mutex.deref();
     let (user_id, token) = match user_id {
         None => {
-            let user = insert_into(users)
+            let user = insert_into(users::dsl::users)
                 .values((
                     login.eq::<Option<String>>(Option::None),
                     password.eq::<Option<String>>(Option::None)
                 ))
-                .returning(users::all_columns())
+                .returning(users::dsl::users::all_columns())
                 .get_results::<User>(db_conn);
             let id = user.unwrap().first().unwrap().id;
             let token = create_jwt(&id,jwt_secret.as_bytes()).unwrap();
@@ -127,28 +128,46 @@ pub async fn join_parking(
 }
 
 fn find_user_by_login(db_conn: &PgConnection, user_login: String) -> Result<Vec<User>, Error> {
-    users.filter(login.eq(&user_login)).load::<User>(db_conn)
+    users::dsl::users.filter(login.eq(&user_login)).load::<User>(db_conn)
 }
 
-pub async fn register(new_user: UserCredentials, db: Db) -> Result<impl Reply, Rejection> {
+pub async fn register(
+    new_user: UserCredentials,
+    db: Db,
+    user_id:Option<i32>
+) -> Result<impl Reply, Rejection> {
     let db_conn_mutex = db.lock().unwrap();
     let db_conn = db_conn_mutex.deref();
     let users_by_name = find_user_by_login(db_conn, new_user.login.clone());
+    let hashed_password = Some(hash(new_user.password.as_bytes()));
+    let new_credentials = (
+        login.eq(Some(new_user.login)),
+        password.eq(hashed_password)
+    );
+    match user_id {
+        None => {
+            match users_by_name {
+                Ok(result) => {
+                    if result.is_empty() {
 
-    match users_by_name {
-        Ok(result) => {
-            if result.is_empty() {
-                let hashed_password = Some(hash(new_user.password.as_bytes()));
-                insert_into(users)
-                    .values((login.eq(Some(new_user.login)), password.eq(hashed_password)))
-                    .execute(db_conn);
-                Ok(StatusCode::CREATED)
-            } else {
-                Err(reject::custom(LoginInUseError))
+                        insert_into(users::dsl::users)
+                            .values(new_credentials)
+                            .execute(db_conn);
+                        Ok(StatusCode::CREATED)
+                    } else {
+                        Err(reject::custom(LoginInUseError))
+                    }
+                }
+                Err(_) => Err(reject::reject()),
             }
         }
-        Err(_) => Err(reject::reject()),
+        Some(id) => {
+            let target = users::dsl::users.filter((users::dsl::user_id.eq(id)));
+            diesel::update(target).set(new_credentials.clone()).execute(db_conn);
+            Ok(StatusCode::CREATED)
+        }
     }
+
 }
 
 pub async fn log_in(

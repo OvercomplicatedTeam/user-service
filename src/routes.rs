@@ -62,6 +62,7 @@ pub fn register(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> 
         .and(warp::post())
         .and(filters::json_body::<UserCredentials>())
         .and(filters::with_db(db))
+        .and(filters::with_auth(false))
         .and_then(handlers::register)
 }
 
