@@ -6,10 +6,7 @@ use crate::errors::Error::{
     LoginInUseError, NoPermissionError, WrongCredentialsError, WrongParkingError,
 };
 use crate::routes::Db;
-use crate::schema::{
-    CreateParkingRequest, JoinParkingRequest, LoginResponse, ParkingWithoutPassword,
-    UserCredentials,
-};
+use crate::schema::{CreateParkingRequest, JoinParkingRequest, LoginResponse, ParkingWithoutPassword, UserCredentials, JoinParkingResponse};
 
 use crate::db_schema::parkings;
 use crate::db_schema::parkings_consumers;
@@ -81,13 +78,31 @@ pub async fn create_parking(
     }
 }
 
+
 pub async fn join_parking(
     body: JoinParkingRequest,
     db: Db,
     user_id: Option<i32>,
+    jwt_secret: String
 ) -> Result<impl Reply, Rejection> {
     let db_conn_mutex = db.lock().unwrap();
     let db_conn = db_conn_mutex.deref();
+    let (user_id, token) = match user_id {
+        None => {
+            let user = insert_into(users)
+                .values((
+                    login.eq::<Option<String>>(Option::None),
+                    password.eq::<Option<String>>(Option::None)
+                ))
+                .returning(users::all_columns())
+                .get_results::<User>(db_conn);
+            let id = user.unwrap().first().unwrap().id;
+            let token = create_jwt(&id,jwt_secret.as_bytes()).unwrap();
+            (id, Some(token))
+        },
+        Some(id) => (id,None)
+    };
+
     let parking: Result<Parking, Error> = parkings::dsl::parkings
         .filter(
             parkings::dsl::name
@@ -95,15 +110,17 @@ pub async fn join_parking(
                 .and(parkings::dsl::password.eq(body.password)),
         )
         .first::<Parking>(db_conn);
+
     match parking {
         Ok(valid_parking) => {
+
             insert_into(parkings_consumers::dsl::parkings_consumers)
                 .values((
                     parkings_consumers::dsl::parking_id.eq(valid_parking.parking_id),
-                    parkings_consumers::dsl::consumer_id.eq(user_id.unwrap()),
+                    parkings_consumers::dsl::consumer_id.eq(user_id),
                 ))
                 .execute(db_conn);
-            Ok(StatusCode::OK)
+            Ok(reply::json::<JoinParkingResponse>(&JoinParkingResponse{token, parking:valid_parking}))
         }
         Err(_) => Err(reject::custom(WrongParkingError)),
     }

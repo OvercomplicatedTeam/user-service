@@ -45,6 +45,7 @@ pub fn parking_join(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejecti
         .and(filters::json_body::<JoinParkingRequest>())
         .and(filters::with_db(db))
         .and(filters::with_auth(false))
+        .and(filters::with_jwt_secret())
         .and_then(handlers::join_parking)
 }
 

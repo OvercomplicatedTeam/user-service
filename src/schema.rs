@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::models::Parking;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -20,6 +21,13 @@ pub struct LoginResponse {
     pub token: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct JoinParkingResponse {
+    pub token: Option<String>,
+    pub parking: Parking
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct User {
@@ -28,15 +36,6 @@ pub struct User {
     pub password: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct Parking {
-    pub id: u64,
-    pub name: String,
-    pub password: String,
-    pub admin_id: u64,
-    pub parking_consumers_id: Vec<u64>,
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
