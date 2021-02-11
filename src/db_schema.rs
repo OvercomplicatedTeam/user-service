@@ -26,8 +26,4 @@ joinable!(parkings -> users (admin_id));
 joinable!(parkings_consumers -> parkings (parking_id));
 joinable!(parkings_consumers -> users (consumer_id));
 
-allow_tables_to_appear_in_same_query!(
-    parkings,
-    parkings_consumers,
-    users,
-);
+allow_tables_to_appear_in_same_query!(parkings, parkings_consumers, users,);

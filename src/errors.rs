@@ -18,8 +18,9 @@ pub enum Error {
     InvalidAuthHeaderError,
     #[error("parking not found")]
     WrongParkingError,
-    // #[error("no permission")]
-    // NoPermissionError,
+    #[error("This login is taken. Try another.")]
+    LoginInUseError, // #[error("no permission")]
+                     // NoPermissionError
 }
 
 #[derive(Serialize, Debug)]
@@ -42,6 +43,7 @@ pub async fn handle_rejection(err: Rejection) -> std::result::Result<impl Reply,
                 "Internal Server Error".to_string(),
             ),
             Error::WrongParkingError => (StatusCode::BAD_REQUEST, error.to_string()),
+            Error::LoginInUseError => (StatusCode::BAD_REQUEST, error.to_string()),
             // Error::NoPermissionError => (StatusCode::UNAUTHORIZED, error.to_string()),
             _ => (StatusCode::BAD_REQUEST, error.to_string()),
         }

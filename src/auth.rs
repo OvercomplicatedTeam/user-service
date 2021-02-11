@@ -23,7 +23,7 @@ pub fn verify(hash: &str, password: &[u8]) -> bool {
     argon2::verify_encoded(hash, password).unwrap_or(false)
 }
 
-pub fn create_jwt(id: &u64, jwt_secret: &[u8]) -> Result<String, Error> {
+pub fn create_jwt(id: &i32, jwt_secret: &[u8]) -> Result<String, Error> {
     let expiration = Utc::now()
         .checked_add_signed(chrono::Duration::hours(60))
         .expect("valid timestamp")
@@ -39,7 +39,7 @@ pub fn create_jwt(id: &u64, jwt_secret: &[u8]) -> Result<String, Error> {
 
 pub async fn authorize(
     (headers, obligatory): (HeaderMap<HeaderValue>, bool),
-) -> Result<Option<u64>, Rejection> {
+) -> Result<Option<i32>, Rejection> {
     let jwt_secret = env::var("JWT_SECRET").unwrap();
     match jwt_from_header(&headers) {
         Ok(jwt) => {

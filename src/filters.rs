@@ -1,5 +1,5 @@
 use crate::auth::authorize;
-use crate::schema::Db;
+use crate::routes::Db;
 use serde::de::DeserializeOwned;
 use std::convert::Infallible;
 use std::env;
@@ -21,7 +21,7 @@ pub fn with_jwt_secret() -> impl Filter<Extract = (String,), Error = Infallible>
 
 pub fn with_auth(
     obligatory: bool,
-) -> impl Filter<Extract = (Option<u64>,), Error = Rejection> + Clone {
+) -> impl Filter<Extract = (Option<i32>,), Error = Rejection> + Clone {
     filters::header::headers_cloned()
         .map(move |headers: HeaderMap<HeaderValue>| (headers, obligatory))
         .and_then(authorize)

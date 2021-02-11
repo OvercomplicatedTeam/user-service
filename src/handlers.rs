@@ -2,124 +2,149 @@ use std::convert::Infallible;
 use warp::{http::StatusCode, reject, reply, Rejection, Reply};
 
 use crate::auth::{create_jwt, hash, verify};
-use crate::errors::Error::{WrongCredentialsError, WrongParkingError};
+use crate::errors::Error::{LoginInUseError, WrongCredentialsError, WrongParkingError};
+use crate::routes::Db;
 use crate::schema::{
-    CreateParkingRequest, Db, JoinParkingRequest, LoginResponse, Parking, ParkingWithoutPassword,
-    User, UserCredentials,
+    CreateParkingRequest, JoinParkingRequest, LoginResponse, ParkingWithoutPassword,
+    UserCredentials,
 };
+
+use crate::db_schema::parkings;
+use crate::db_schema::parkings_consumers;
+use crate::db_schema::users::columns::password;
+use crate::db_schema::users::dsl::{login, users};
+use crate::models::{Parking, User};
+use diesel::result::Error;
+use diesel::*;
+use std::ops::Deref;
 
 pub async fn create_parking(
     parking: CreateParkingRequest,
     db: Db,
-    user_id: Option<u64>,
+    user_id: Option<i32>,
 ) -> Result<impl Reply, Infallible> {
-    let mut db = db.lock().await;
+    let db_conn_mutex = db.lock().unwrap();
+    let db_conn = db_conn_mutex.deref();
 
-    match db.parkings.iter().find(|p| p.name == parking.name) {
-        Some(_) => Ok(StatusCode::BAD_REQUEST),
-        None => {
-            let new_id =
-                db.parkings.iter().fold(
-                    0,
-                    |acc, parking| if acc > parking.id { acc } else { parking.id },
-                ) + 1;
-            let new_parking = Parking {
-                id: new_id,
-                admin_id: user_id.unwrap(),
-                name: parking.name,
-                password: parking.password,
-                parking_consumers_id: vec![],
-            };
-            db.parkings.push(new_parking);
-            Ok(StatusCode::CREATED)
+    match parkings::dsl::parkings
+        .filter(parkings::dsl::name.eq(parking.name.clone()))
+        .load::<Parking>(db_conn)
+    {
+        Ok(parkings_found) => {
+            if parkings_found.is_empty() {
+                let parking_id = insert_into(parkings::dsl::parkings)
+                    .values((
+                        parkings::dsl::admin_id.eq(user_id.unwrap()),
+                        parkings::dsl::name.eq(parking.name.clone()),
+                        parkings::dsl::password.eq(parking.password),
+                    ))
+                    .returning(parkings::dsl::parking_id)
+                    .get_result::<i32>(db_conn);
+                match parking_id {
+                    Ok(_) => Ok(StatusCode::CREATED),
+                    Err(_) => Ok(StatusCode::INTERNAL_SERVER_ERROR),
+                }
+            } else {
+                Ok(StatusCode::BAD_REQUEST)
+            }
         }
+        Err(_) => Ok(StatusCode::BAD_REQUEST),
     }
 }
 
-//TODO: finish this function
 pub async fn join_parking(
     body: JoinParkingRequest,
     db: Db,
-    user_id: Option<u64>,
+    user_id: Option<i32>,
 ) -> Result<impl Reply, Rejection> {
-    let db = db.lock().await;
-    match db
-        .parkings
-        .iter()
-        .find(|parking| parking.name == body.name && parking.password == body.password)
-    {
-        None => return Err(reject::custom(WrongParkingError)),
-        Some(_) => {
-            if user_id.is_none() {
-                //add new user as guest
-            } else {
-                //push userId  to the parking_consumers_ids
-            }
+    let db_conn_mutex = db.lock().unwrap();
+    let db_conn = db_conn_mutex.deref();
+    let parking: Result<Parking, Error> = parkings::dsl::parkings
+        .filter(
+            parkings::dsl::name
+                .eq(body.name)
+                .and(parkings::dsl::password.eq(body.password)),
+        )
+        .first::<Parking>(db_conn);
+    match parking {
+        Ok(valid_parking) => {
+            insert_into(parkings_consumers::dsl::parkings_consumers)
+                .values((
+                    parkings_consumers::dsl::parking_id.eq(valid_parking.parking_id),
+                    parkings_consumers::dsl::consumer_id.eq(user_id.unwrap()),
+                ))
+                .execute(db_conn);
+            Ok(StatusCode::OK)
         }
-    };
-
-    Ok(StatusCode::CREATED) //remove it
-}
-
-pub async fn register(new_user: UserCredentials, db: Db) -> Result<impl Reply, Infallible> {
-    let mut db = db.lock().await;
-
-    match db
-        .users
-        .iter()
-        .filter(|user| user.login.is_some())
-        .find(|user| user.login.clone().unwrap() == new_user.login)
-    {
-        Some(_) => Ok(StatusCode::BAD_REQUEST),
-        None => {
-            let new_id = db
-                .users
-                .iter()
-                .fold(0, |acc, user| if acc > user.id { acc } else { user.id })
-                + 1;
-            let hashed_user = User {
-                id: new_id,
-                login: Some(new_user.login),
-                password: Some(hash(new_user.password.as_bytes())),
-            };
-            db.users.push(hashed_user);
-            Ok(StatusCode::CREATED)
-        }
+        Err(_) => Err(reject::custom(WrongParkingError)),
     }
 }
 
-pub async fn login(
+fn find_user_by_login(db_conn: &PgConnection, user_login: String) -> Result<Vec<User>, Error> {
+    users.filter(login.eq(&user_login)).load::<User>(db_conn)
+}
+
+pub async fn register(new_user: UserCredentials, db: Db) -> Result<impl Reply, Rejection> {
+    let db_conn_mutex = db.lock().unwrap();
+    let db_conn = db_conn_mutex.deref();
+    let users_by_name = find_user_by_login(db_conn, new_user.login.clone());
+
+    match users_by_name {
+        Ok(result) => {
+            if result.is_empty() {
+                let hashed_password = Some(hash(new_user.password.as_bytes()));
+                insert_into(users)
+                    .values((login.eq(Some(new_user.login)), password.eq(hashed_password)))
+                    .execute(db_conn);
+                Ok(StatusCode::CREATED)
+            } else {
+                Err(reject::custom(LoginInUseError))
+            }
+        }
+        Err(_) => Err(reject::reject()),
+    }
+}
+
+pub async fn log_in(
     credentials: UserCredentials,
     db: Db,
     jwt_secret: String,
 ) -> Result<impl Reply, Rejection> {
-    let db = db.lock().await;
-    match db
-        .users
-        .iter()
-        .filter(|user| user.login.is_some())
-        .find(|user| user.login.clone().unwrap() == credentials.login)
-    {
-        None => Err(reject::custom(WrongCredentialsError)),
-        Some(user) => {
-            let user_password = user.password.clone().unwrap();
-            if verify(&user_password, credentials.password.as_bytes()) {
-                let token = create_jwt(&user.id, jwt_secret.as_bytes()).unwrap();
-                Ok(reply::json(&LoginResponse { token }))
-            } else {
+    let db_conn_mutex = db.lock().unwrap();
+    let db_conn = db_conn_mutex.deref();
+    let users_by_name = find_user_by_login(db_conn, credentials.login.clone());
+
+    match users_by_name {
+        Ok(found_users) => {
+            if found_users.is_empty() {
                 Err(reject::custom(WrongCredentialsError))
+            } else {
+                let auth_user = found_users.first().unwrap();
+                let user_password = auth_user.password.clone().unwrap();
+                if verify(&user_password, credentials.password.as_bytes()) {
+                    let token = create_jwt(&auth_user.id, jwt_secret.as_bytes()).unwrap();
+                    Ok(reply::json(&LoginResponse { token }))
+                } else {
+                    Err(reject::custom(WrongCredentialsError))
+                }
             }
         }
+        _ => Err(reject::custom(WrongCredentialsError)),
     }
 }
 
-pub async fn list_parkings(db: Db, user_id: Option<u64>) -> Result<impl Reply, Rejection> {
-    let db = db.lock().await;
-    let parkings = db
-        .parkings
-        .iter()
-        .filter(|parking| parking.admin_id == user_id.unwrap())
-        .map(|parking| parking.to_parking_without_password())
-        .collect();
+pub async fn list_parkings(db: Db, user_id: Option<i32>) -> Result<impl Reply, Rejection> {
+    let db_conn_mutex = db.lock().unwrap();
+    let db_conn = db_conn_mutex.deref();
+    let parkings: Vec<ParkingWithoutPassword> = match parkings::dsl::parkings
+        .filter(parkings::dsl::admin_id.eq(user_id.unwrap()))
+        .load::<Parking>(db_conn)
+    {
+        Ok(result) => result
+            .iter()
+            .map(|parking| parking.to_parking_without_password())
+            .collect(),
+        Err(_) => return Err(reject()),
+    };
     Ok(reply::json::<Vec<ParkingWithoutPassword>>(&parkings))
 }
