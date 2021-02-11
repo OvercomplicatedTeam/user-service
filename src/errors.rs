@@ -8,14 +8,14 @@ use warp::http::StatusCode;
 pub enum Error {
     #[error("wrong credentials")]
     WrongCredentialsError,
-    // #[error("jwt token not valid")]
-    // JWTTokenError,
+    #[error("jwt token not valid")]
+    JWTTokenError,
     #[error("jwt token creation error")]
     JWTTokenCreationError,
-    // #[error("no auth header")]
-    // NoAuthHeaderError,
-    // #[error("invalid auth header")]
-    // InvalidAuthHeaderError,
+    #[error("no auth header")]
+    NoAuthHeaderError,
+    #[error("invalid auth header")]
+    InvalidAuthHeaderError,
     // #[error("no permission")]
     // NoPermissionError,
 }
@@ -34,7 +34,7 @@ pub async fn handle_rejection(err:Rejection) -> std::result::Result<impl Reply, 
     } else if let Some(error) = err.find::<Error>(){
         match error {
             Error::WrongCredentialsError => (StatusCode::FORBIDDEN, error.to_string()),
-            // Error::JWTTokenError => (StatusCode::UNAUTHORIZED, error.to_string()),
+            Error::JWTTokenError => (StatusCode::UNAUTHORIZED, error.to_string()),
             Error::JWTTokenCreationError => (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string()),
             // Error::NoPermissionError => (StatusCode::UNAUTHORIZED, error.to_string()),
             _ => (StatusCode::BAD_REQUEST, error.to_string()),

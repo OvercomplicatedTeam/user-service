@@ -2,11 +2,10 @@ mod schema;
 mod routes;
 mod filters;
 mod handlers;
-mod utils;
+mod auth;
 mod errors;
 
 use dotenv::dotenv;
-// use std::env;
 
 #[tokio::main]
 async fn main() {

@@ -1,8 +1,10 @@
 use crate::schema::{Db};
-use warp::{Filter, Rejection};
+use warp::{Filter, Rejection, filters};
 use std::convert::Infallible;
 use serde::de::DeserializeOwned;
 use std::env;
+use warp::http::{HeaderMap, HeaderValue};
+use crate::auth::authorize;
 
 pub fn with_db(db:Db) -> impl Filter<Extract = (Db,), Error = Infallible> + Clone {
     warp::any().map(move || db.clone())
@@ -13,5 +15,11 @@ pub fn json_body<T: DeserializeOwned + Send>() -> impl Filter<Extract = (T,), Er
 }
 
 pub fn with_jwt_secret() -> impl Filter <Extract = (String,), Error = Infallible> + Clone {
-    warp::any().map(move || env::var("jwt_secret").unwrap())
+    warp::any().map(move || env::var("JWT_SECRET").unwrap())
+}
+
+pub fn with_auth() -> impl Filter<Extract = (u64,), Error = Rejection> + Clone {
+    filters::header::headers_cloned()
+        .map(move |headers: HeaderMap<HeaderValue>| headers)
+        .and_then(authorize)
 }

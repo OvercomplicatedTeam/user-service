@@ -18,7 +18,7 @@ pub struct UserCredentials {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct LoginResponse {
+    pub struct LoginResponse {
     pub token: String
 }
 
@@ -38,6 +38,13 @@ pub struct Parking {
     pub admin_id: u64,
     pub parking_consumers_id: Vec<u64>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateParkingRequest {
+    pub name: String
+}
+
 
 pub struct System {
     pub users: Vec<User>,

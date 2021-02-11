@@ -1,28 +1,38 @@
 use std::convert::{Infallible};
 use warp::{http::StatusCode, Reply, reject, reply, Rejection};
 
-use crate::schema::{Parking, Db, User, UserCredentials, LoginResponse};
-use crate::utils::{hash, verify, create_jwt};
+use crate::schema::{Parking, Db, User, UserCredentials, LoginResponse, CreateParkingRequest};
+use crate::auth::{hash, verify, create_jwt};
 use crate::errors::Error::WrongCredentialsError;
 
 
-pub async fn create_parking(new_parking: Parking, db: Db) -> Result<impl Reply, Infallible> {
+pub async fn create_parking(parking: CreateParkingRequest, db: Db, user_id: u64) -> Result<impl Reply, Infallible> {
     let mut db = db.lock().await;
 
     match db.parkings
         .iter()
-        .find(|parking| parking.id == new_parking.id) {
+        .find(|p| p.name == parking.name) {
         Some(_) => {
             Ok(StatusCode::BAD_REQUEST)
         }
         None => {
+            let new_id = db
+                .parkings
+                .iter()
+                .fold(0, |acc, parking|
+                    if acc > parking.id { acc } else { parking.id },
+                ) + 1;
+            let new_parking = Parking {
+                id: new_id,
+                admin_id: user_id,
+                name: parking.name,
+                parking_consumers_id: Vec::new(),
+            };
             db.parkings.push(new_parking);
             Ok(StatusCode::CREATED)
         }
     }
 }
-
-
 
 
 pub async fn register(new_user: UserCredentials, db: Db) -> Result<impl Reply, Infallible> {
@@ -38,8 +48,7 @@ pub async fn register(new_user: UserCredentials, db: Db) -> Result<impl Reply, I
                 .users
                 .iter()
                 .fold(0, |acc, user|
-                    if acc > user.id { acc }
-                    else { user.id }
+                    if acc > user.id { acc } else { user.id },
                 ) + 1;
 
             let hashed_user = User {
@@ -53,13 +62,12 @@ pub async fn register(new_user: UserCredentials, db: Db) -> Result<impl Reply, I
     }
 }
 
-type WebResult<T> = std::result::Result<T, Rejection>;
 
 pub async fn login(
     credentials: UserCredentials,
-    db:Db,
-    jwt_secret: String
-) -> WebResult<impl Reply> {
+    db: Db,
+    jwt_secret: String,
+) -> Result<impl Reply, Rejection> {
     let db = db.lock().await;
     match db.users.iter().find(|user| user.login == credentials.login) {
         None => Err(reject::custom(WrongCredentialsError)),
@@ -72,6 +80,14 @@ pub async fn login(
             }
         }
     }
+}
 
-
+pub async fn list_parkings(db: Db, user_id: u64) -> Result<impl Reply, Rejection> {
+    let db = db.lock().await;
+    let parkings = db
+        .parkings
+        .iter()
+        .filter(|parking| parking.admin_id == user_id)
+        .collect();
+    Ok(reply::json::<Vec<&Parking>>(&parkings))
 }
