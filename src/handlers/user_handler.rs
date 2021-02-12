@@ -12,6 +12,9 @@ use diesel::result::Error;
 use diesel::*;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
+use crate::db::db_schema::users::dsl::{login, password};
+use diesel::expression::bound::Bound;
+use diesel::sql_types::Text;
 
 fn find_user_by_login(db_conn: &PgConnection, user_login: String) -> Result<User, Error> {
     users::dsl::users
@@ -19,6 +22,10 @@ fn find_user_by_login(db_conn: &PgConnection, user_login: String) -> Result<User
         .first::<User>(db_conn)
 }
 
+type UserUpdateCredentials = (
+    diesel::expression::operators::Eq<login, Bound<diesel::sql_types::Nullable<Text>, Option<String>>>,
+    diesel::expression::operators::Eq<password, Bound<diesel::sql_types::Nullable<Text>, Option<String>>>
+);
 pub async fn register(
     new_user: UserCredentials,
     db: Db,
@@ -38,32 +45,42 @@ pub async fn register(
         Err(_) => {}
     };
     match user_id {
-        None => {
-            match insert_into(users::dsl::users)
-                .values(new_credentials)
-                .execute(db_conn)
-            {
-                Ok(res) => Ok(StatusCode::CREATED),
-                Err(e) => Err(reject::reject()),
+        None => create_user(db_conn,new_credentials),
+        Some(id) => update_user(id, db_conn, new_credentials)
+    }
+}
+fn create_user(
+    db_conn:&PgConnection,
+    new_credentials:UserUpdateCredentials
+) -> Result<StatusCode, Rejection> {
+    match insert_into(users::dsl::users)
+        .values(new_credentials)
+        .execute(db_conn)
+    {
+        Ok(_) => Ok(StatusCode::CREATED),
+        Err(_) => Err(reject::reject()),
+    }
+}
+
+fn update_user(
+    id:i32,
+    db_conn:&PgConnection,
+    new_credentials:UserUpdateCredentials
+) -> Result<StatusCode, Rejection> {
+    let target = users::dsl::users.filter(users::dsl::user_id.eq(id));
+    let user_to_update: Result<User, Error> = target.first::<User>(db_conn);
+    match user_to_update {
+        Ok(user) => {
+            if user.login.is_none() || user.password.is_none() {
+                diesel::update(target)
+                    .set(new_credentials.clone())
+                    .execute(db_conn);
+                Ok(StatusCode::CREATED)
+            } else {
+                Ok(StatusCode::UNAUTHORIZED)
             }
         }
-        Some(id) => {
-            let target = users::dsl::users.filter(users::dsl::user_id.eq(id));
-            let updated_user: Result<User, Error> = target.first::<User>(db_conn);
-            match updated_user {
-                Ok(user) => {
-                    if user.login.is_none() || user.password.is_none() {
-                        diesel::update(target)
-                            .set(new_credentials.clone())
-                            .execute(db_conn);
-                        Ok(StatusCode::CREATED)
-                    } else {
-                        Ok(StatusCode::UNAUTHORIZED)
-                    }
-                }
-                Err(_) => Ok(StatusCode::UNAUTHORIZED),
-            }
-        }
+        Err(_) => Ok(StatusCode::UNAUTHORIZED),
     }
 }
 
