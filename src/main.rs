@@ -2,15 +2,12 @@
 extern crate diesel;
 
 use std::sync::{Arc, Mutex};
-
 use dotenv::dotenv;
-
-mod auth;
 mod db;
-mod filters;
 mod handlers;
 mod models;
 mod routes;
+mod security;
 
 #[tokio::main]
 async fn main() {

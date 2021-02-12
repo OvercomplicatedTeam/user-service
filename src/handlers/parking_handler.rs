@@ -1,7 +1,6 @@
 use std::convert::Infallible;
 use warp::{http::StatusCode, reject, reply, Rejection, Reply};
 
-use crate::auth::create_jwt;
 
 use crate::routes::Db;
 
@@ -15,6 +14,8 @@ use diesel::result::Error;
 use diesel::*;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
+use crate::security::create_jwt;
+
 
 fn get_consumed_parkings(db_conn: &PgConnection, user_id: i32) -> Vec<Parking> {
     let consumers: Vec<ParkingConsumer> = match parkings_consumers::dsl::parkings_consumers

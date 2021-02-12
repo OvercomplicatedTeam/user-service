@@ -1,5 +1,4 @@
-use crate::auth::authorize;
-use crate::routes::Db;
+use crate::routes::{Db, auth};
 use serde::de::DeserializeOwned;
 use std::convert::Infallible;
 use std::env;
@@ -24,5 +23,5 @@ pub fn with_auth(
 ) -> impl Filter<Extract = (Option<i32>,), Error = Rejection> + Clone {
     filters::header::headers_cloned()
         .map(move |headers: HeaderMap<HeaderValue>| (headers, obligatory))
-        .and_then(authorize)
+        .and_then(auth::authorize)
 }

@@ -4,10 +4,12 @@ use std::sync::{Arc, Mutex};
 use diesel::PgConnection;
 use warp::{Filter, Rejection, Reply};
 
-use crate::filters;
-use crate::handlers::parking_handler::{CreateParkingRequest, JoinParkingRequest};
 use crate::handlers::{error_handler, parking_handler, parking_password_handler, user_handler};
+use crate::handlers::parking_handler::{CreateParkingRequest, JoinParkingRequest};
 use crate::models::user::UserCredentials;
+
+mod filters;
+mod auth;
 
 pub type Db = Arc<Mutex<PgConnection>>;
 

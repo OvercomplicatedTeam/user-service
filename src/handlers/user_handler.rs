@@ -1,12 +1,11 @@
 use warp::{http::StatusCode, reject, reply, Rejection, Reply};
 
-use crate::auth::{create_jwt, hash, verify};
 
 use crate::routes::Db;
 
 use crate::db::db_schema::users;
 use crate::handlers::error_handler;
-use crate::handlers::error_handler::Error::{JWTTokenError, LoginInUseError, NoPermissionError};
+use crate::handlers::error_handler::Error::LoginInUseError;
 use crate::models::user::{User, UserCredentials};
 use diesel::result::Error;
 use diesel::*;
@@ -15,6 +14,7 @@ use std::ops::Deref;
 use crate::db::db_schema::users::dsl::{login, password};
 use diesel::expression::bound::Bound;
 use diesel::sql_types::Text;
+use crate::security::{hash, create_jwt, verify};
 
 fn find_user_by_login(db_conn: &PgConnection, user_login: String) -> Result<User, Error> {
     users::dsl::users
