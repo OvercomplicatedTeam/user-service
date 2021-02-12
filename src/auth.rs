@@ -2,16 +2,23 @@ use argon2::{self, Config};
 use chrono::prelude::*;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use warp::http::HeaderMap;
 use warp::hyper::header::AUTHORIZATION;
 use warp::hyper::http::HeaderValue;
 use warp::{reject, Rejection};
 
-use crate::errors::Error;
-use crate::schema::Claims;
+use crate::handlers::error_handler::Error;
 use std::env;
 
 const BEARER: &str = "Bearer ";
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Claims {
+    pub id: i32,
+    pub exp: usize,
+}
 
 pub fn hash(password: &[u8]) -> String {
     let salt = rand::thread_rng().gen::<[u8; 32]>();
